@@ -46,7 +46,7 @@ def welcome():
 
 
 @app.route("/api/v1.0/precipitation")
-def names():
+def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
@@ -55,18 +55,58 @@ def names():
     #dateFilter = dt.datetime(2016, date.today().month, date.today().day)
 
     results = session.query(measurement.date,measurement.prcp).all()
-    all_stations = []
+    all_precep = []
     for date, prcp in results:
         station_dict = {}
         station_dict["date"] = date
         station_dict["prcp"] = prcp
         
-        all_stations.append(station_dict)
+        all_precep.append(station_dict)
     
     session.close()
 
  
-    return jsonify(all_stations)
+    return jsonify(all_precep)
+
+@app.route("/api/v1.0/stations")
+def stations():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+
+    sel =[station.name]
+    results = session.query(*sel).all()    
+    session.close()
+
+    all_precep = list(np.ravel(results))
+    return jsonify(all_precep)
+
+
+@app.route("/api/v1.0/tobs")
+def tobs():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+    maxDate = session.query(func.max(measurement.date)).one()
+    #Get MAx date - 1 year
+    fromDate = dt.datetime.strptime(maxDate[0], '%Y-%m-%d')
+    py = fromDate.year -1
+    dateFilter = dt.datetime(py, fromDate.month, fromDate.day)
+
+    mostActive =session.query(measurement.station,func.count(measurement.station)).\
+    group_by(measurement.station).\
+    order_by(func.count(measurement.station).desc()).all()
+    station=mostActive[0][0]
+    results =session.query( func.strftime("%m", measurement.date),measurement.tobs).\
+        filter(measurement.station == station).\
+        filter(measurement.date >= dateFilter).all()
+
+    session.close()
+
+    all_precep = list(np.ravel(results))
+    return jsonify(all_precep)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
